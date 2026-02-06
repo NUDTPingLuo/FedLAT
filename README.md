@@ -57,3 +57,137 @@ pip install tf2jax==0.3.0 --no-deps
 
 # Verify installation
 python -c "import jax; print(f'JAX Devices: {jax.devices()}')"
+```
+## 📂 File Structure
+
+* `run_exp.py`: Main script for **Ours** (Stage 1 & Stage 2) and **FedAvg-AT**.
+* `run_fed_mart.py`: Implementation of **Fed-MART**.
+* `run_fed_awp.py`: Implementation of **Fed-AWP**.
+* `run_fed_calfat.py`: Implementation of **CalFAT**.
+* `models.py`: Network architectures (LeNet, CifarCNN, ResNet18).
+* `test_functions.py`: Adversarial attack implementations (PGD, FGSM, MIM, C&W).
+* `data.py`: Data loading and Non-IID partitioning logic.
+
+## 🚀 Usage: Running Our Method
+
+Our method consists of two stages. Stage 1 trains a benign anchor model, and Stage 2 performs linearized adversarial fine-tuning.
+
+### 1. Stage 1: Standard Benign Pre-training
+Train a standard model on clean data to serve as the linearization anchor ($w_0$).
+
+```bash
+# Example: FMNIST using LeNet (100 Epochs Benign)
+python run_exp.py \
+    --dataset fmnist \
+    --model lenet \
+    --standard_epochs 101 \
+    --linear_epochs 0 \
+    --loaders CC \
+    --attack_method pgd \
+    --save_path sgd_benign100 \
+    --constant_save \
+    --random_seed 0 \
+    --skip_second_test \
+    --is_iid True
+```
+### 2. Stage 2: Linearized Adversarial Fine-tuning
+Load the checkpoint from Stage 1 (e.g., epoch 50) and perform linearized adversarial training.
+
+```bash
+# Load checkpoint from 'sgd_benign100/phase1_epoch_50.pkl'
+# Note: The script automatically handles path prefixes.
+python run_exp.py \
+    --base_model_path sgd_benign100/phase1_epoch_50.pkl \
+    --dataset fmnist \
+    --model lenet \
+    --standard_epochs 0 \
+    --linear_epochs 51 \
+    --loaders CA \
+    --attack_method pgd \
+    --save_path sgd_benign50_to_linear_adv50 \
+    --random_seed 0 \
+    --skip_first_test \
+    --constant_save_linear \
+    --is_iid True
+```
+## 📊 Usage: Running Baselines
+
+We provide implementations for state-of-the-art federated adversarial training methods.
+
+### 1. Fed-MART
+Federated version of Misclassification Aware Regularized Training.
+
+```bash
+python run_fed_mart.py \
+    --dataset cifar10 \
+    --model cifar_cnn \
+    --attack_method fgsm \
+    --save_path mart_adv100 \
+    --is_iid True
+```
+### 2. Fed-AWP
+Federated Adversarial Weight Perturbation (SOTA method).
+
+```bash
+python run_fed_awp.py \
+    --dataset cifar10 \
+    --model cifar_cnn \
+    --attack_method pgd \
+    --save_path awp_adv100 \
+    --is_iid True
+```
+### 3. CalFAT
+Calibrated Federated Adversarial Training for Non-IID label skew.
+
+```bash
+python run_fed_calfat.py \
+    --dataset cifar10 \
+    --model cifar_cnn \
+    --attack_method pgd \
+    --save_path calfat_adv100 \
+    --is_iid True
+```
+### 4. FedAvg-AT (Naive Adversarial Training)
+Standard Federated Averaging with local PGD training.
+
+```bash
+python run_exp.py \
+    --dataset cifar10 \
+    --model cifar_cnn \
+    --standard_epochs 101 \
+    --linear_epochs 0 \
+    --loaders AC \
+    --attack_method pgd \
+    --save_path sgd_adv100 \
+    --constant_save \
+    --random_seed 0 \
+    --skip_second_test \
+    --is_iid True
+```
+## ⚙️ Arguments
+
+Key arguments explanation for `run_exp.py`:
+
+* `--dataset`: `cifar10`, `fmnist`, or `cifar100`.
+* `--model`: `lenet` (for FMNIST), `cifar_cnn` (VGG-Small), or `resnet18`.
+* `--is_iid`: `True` for IID data, `False` for Non-IID (Dirichlet).
+* `--attack_method`: `pgd`, `fgsm`, `mim`, or `cw`.
+* `--loaders`: Training mode configuration string.
+    * `CC`: Phase 1 Clean, Phase 2 Clean.
+    * `CA`: Phase 1 Clean, Phase 2 Adv (**Ours**).
+    * `AC`: Phase 1 Adv, Phase 2 Clean (**FedAvg-AT**).
+* `--eps`: Adversarial perturbation budget (e.g., 8.0, code scales by 1/255 automatically).
+* `--base_model_path`: Path to the pickle checkpoint for fine-tuning.
+* `--save_path`: Directory to save logs and checkpoints.
+
+## 📝 Citation
+
+If you find this code useful for your research, please cite our paper:
+
+```bibtex
+@article{2026FedLAT,
+  title={Enhancing Adversarial Robustness in Federated Learning via NTK-Based Linearized Training},
+  author={Ping Luo},
+  journal={},
+  year={2026}
+}
